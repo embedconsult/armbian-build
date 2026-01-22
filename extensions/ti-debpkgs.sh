@@ -53,7 +53,19 @@ function post_install_kernel_debs__activate_dkms() {
     if [[ ${GPU_SUPPORT} == "yes" ]] ; then
         kernel_version=$(grab_version "${SRC}/cache/sources/${LINUXSOURCEDIR}")
         kernel_version_family="${kernel_version}-${BRANCH}-${LINUXFAMILY}"
-        chroot_sdcard "dkms autoinstall --verbose --kernelver ${kernel_version_family}"
+
+        # Try to build DKMS modules, but capture logs if it fails
+        if ! chroot_sdcard "dkms autoinstall --verbose --kernelver ${kernel_version_family}"; then
+            display_alert "DKMS autoinstall failed, capturing build logs" "warning"
+
+            # Copy the DKMS build log out for analysis to output directory
+            if run_host_command_logged "ls ${SDCARD}/var/lib/dkms/ti-img-rogue-driver/*/build/make.log > /dev/null 2>&1"; then
+                run_host_command_logged "cp -v ${SDCARD}/var/lib/dkms/ti-img-rogue-driver/*/build/make.log ${DEST}/logs/dkms-build-error.log"
+                display_alert "DKMS build log saved to ${DEST}/logs/dkms-build-error.log" "warning"
+            else
+                display_alert "Could not find DKMS make.log file" "warning"
+            fi
+        fi
     fi
 }
 
