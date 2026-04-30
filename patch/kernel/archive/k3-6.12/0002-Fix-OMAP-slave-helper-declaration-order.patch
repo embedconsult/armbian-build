@@ -1,7 +1,7 @@
 From d19838a77700a1cf8aa68652f7e1c65fc95d9c9b Mon Sep 17 00:00:00 2001
 From: ChatGPT Codex <codex@beagleboard.org>
 Date: Thu, 30 Apr 2026 13:09:53 +0000
-Subject: [PATCH 2/2] Fix OMAP slave helper declaration order
+Subject: [PATCH 2/3] Fix OMAP slave helper declaration order
 
 ---
  drivers/i2c/busses/i2c-omap.c | 2 ++
