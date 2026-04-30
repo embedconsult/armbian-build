@@ -1,7 +1,7 @@
 From 5a96f2a7b63c21378379854b7ae2bb80a2b4687b Mon Sep 17 00:00:00 2001
 From: ChatGPT Codex <codex@beagleboard.org>
 Date: Mon, 27 Apr 2026 16:04:30 +0000
-Subject: [PATCH] Stage OMAP I2C slave registration support
+Subject: [PATCH 1/2] Stage OMAP I2C slave registration support
 
 ---
  drivers/i2c/busses/i2c-omap.c | 186 +++++++++++++++++++++++++++++++++-
@@ -272,3 +272,4 @@ index 0bdee43dc..5f61c2884 100644
  static const struct i2c_adapter_quirks omap_i2c_quirks = {
 -- 
 2.47.3
+
