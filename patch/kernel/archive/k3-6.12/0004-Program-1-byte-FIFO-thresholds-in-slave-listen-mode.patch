@@ -1,0 +1,36 @@
+From 38e256a469d550634c4dc8b846c6454e28e5436a Mon Sep 17 00:00:00 2001
+From: ChatGPT Codex <codex@beagleboard.org>
+Date: Fri, 1 May 2026 09:54:10 +0000
+Subject: [PATCH] Program 1-byte FIFO thresholds in slave listen mode
+
+---
+ drivers/i2c/busses/i2c-omap.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-omap.c b/drivers/i2c/busses/i2c-omap.c
+index 81abf2574..eb17dacd4 100644
+--- a/drivers/i2c/busses/i2c-omap.c
++++ b/drivers/i2c/busses/i2c-omap.c
+@@ -897,8 +897,6 @@ static void omap_i2c_set_slave_mode(struct omap_i2c_dev *omap)
+ 
+ static void omap_i2c_slave_init_fifos(struct omap_i2c_dev *omap)
+ {
+-	u16 buf = 0;
+-
+ 	if (!omap->fifo_size)
+ 		return;
+ 
+@@ -906,8 +904,8 @@ static void omap_i2c_slave_init_fifos(struct omap_i2c_dev *omap)
+ 	 * In slave mode, keep both FIFO thresholds at 1 byte and clear
+ 	 * any stale state before listening again.
+ 	 */
+-	buf |= OMAP_I2C_BUF_TXFIF_CLR | OMAP_I2C_BUF_RXFIF_CLR;
+-	omap_i2c_write_reg(omap, OMAP_I2C_BUF_REG, buf);
++	omap_i2c_resize_fifo(omap, 1, false);
++	omap_i2c_resize_fifo(omap, 1, true);
+ }
+ 
+ static void omap_i2c_restore_slave_listen(struct omap_i2c_dev *omap)
+-- 
+2.47.3
+
