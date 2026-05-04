@@ -1,0 +1,43 @@
+From a0413f647486a5b799bfd005017ed21b4e24b555 Mon Sep 17 00:00:00 2001
+From: ChatGPT Codex <codex@beagleboard.org>
+Date: Mon, 4 May 2026 16:56:22 +0000
+Subject: [PATCH] Trace OMAP slave registration lifetime
+
+---
+ drivers/i2c/busses/i2c-omap.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/i2c/busses/i2c-omap.c b/drivers/i2c/busses/i2c-omap.c
+index 6dc57338d..1ebf463cc 100644
+--- a/drivers/i2c/busses/i2c-omap.c
++++ b/drivers/i2c/busses/i2c-omap.c
+@@ -844,6 +844,10 @@ omap_i2c_xfer_common(struct i2c_adapter *adap, struct i2c_msg msgs[], int num,
+ out:
+ 	if (omap->slave)
+ 		omap_i2c_restore_slave_listen(omap);
++	else if (num > 0 && msgs[0].addr == 0x30)
++		dev_info_ratelimited(omap->dev,
++				     "master-xfer addr=%#x no registered slave\n",
++				     msgs[0].addr);
+ 	pm_runtime_mark_last_busy(omap->dev);
+ 	pm_runtime_put_autosuspend(omap->dev);
+ 	return r;
+@@ -1403,6 +1407,7 @@ static int omap_i2c_reg_slave(struct i2c_client *slave)
+ 			OMAP_I2C_IE_RRDY | OMAP_I2C_IE_ARDY |
+ 			OMAP_I2C_IE_NACK | OMAP_I2C_IE_AL;
+ 
++	dev_info(omap->dev, "slave register addr=%#x\n", slave->addr);
+ 	omap_i2c_restore_slave_listen(omap);
+ 	omap_i2c_write_reg(omap, OMAP_I2C_IE_REG, omap->iestate);
+ 	omap_i2c_slave_log_state(omap, "listen", 0);
+@@ -1416,6 +1421,7 @@ static int omap_i2c_unreg_slave(struct i2c_client *slave)
+ 
+ 	WARN_ON(omap->slave != slave);
+ 
++	dev_info(omap->dev, "slave unregister addr=%#x\n", slave->addr);
+ 	omap_i2c_write_reg(omap, OMAP_I2C_IE_REG, 0);
+ 	omap->slave = NULL;
+ 	omap->slave_read = false;
+-- 
+2.47.3
+
