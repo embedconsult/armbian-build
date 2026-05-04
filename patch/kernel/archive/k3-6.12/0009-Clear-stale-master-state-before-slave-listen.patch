@@ -1,0 +1,32 @@
+From 5e394583efaed580bd9bcc85f2b9c7d6d7650084 Mon Sep 17 00:00:00 2001
+From: ChatGPT Codex <codex@beagleboard.org>
+Date: Mon, 4 May 2026 21:30:14 +0000
+Subject: [PATCH] Clear stale master state before slave listen
+
+---
+ drivers/i2c/busses/i2c-omap.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/i2c/busses/i2c-omap.c b/drivers/i2c/busses/i2c-omap.c
+index 81d4b16ac..5983db880 100644
+--- a/drivers/i2c/busses/i2c-omap.c
++++ b/drivers/i2c/busses/i2c-omap.c
+@@ -901,7 +901,14 @@ static void omap_i2c_set_slave_mode(struct omap_i2c_dev *omap)
+ 	u16 con;
+ 
+ 	con = omap_i2c_read_reg(omap, OMAP_I2C_CON_REG);
+-	con &= ~OMAP_I2C_CON_MST;
++	/*
++	 * Do not carry master-only transfer state into slave listen mode.
++	 * In particular, stale TRX state can leak the previous master
++	 * transfer direction into subsequent slave transactions.
++	 */
++	con &= ~(OMAP_I2C_CON_MST | OMAP_I2C_CON_TRX |
++		 OMAP_I2C_CON_STT | OMAP_I2C_CON_STP |
++		 OMAP_I2C_CON_RM  | OMAP_I2C_CON_STB);
+ 	omap_i2c_write_reg(omap, OMAP_I2C_CON_REG, con);
+ }
+ 
+-- 
+2.47.3
+
