@@ -1,0 +1,96 @@
+From 96ed9b94dc502db24371d2d5adaedb95b6df6597 Mon Sep 17 00:00:00 2001
+From: ChatGPT Codex <codex@beagleboard.org>
+Date: Thu, 7 May 2026 13:53:30 +0000
+Subject: [PATCH] Pause OMAP recv-len after count byte
+
+---
+ drivers/i2c/busses/i2c-omap.c | 31 ++++++++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-omap.c b/drivers/i2c/busses/i2c-omap.c
+index 6cc241563..1d6385f1f 100644
+--- a/drivers/i2c/busses/i2c-omap.c
++++ b/drivers/i2c/busses/i2c-omap.c
+@@ -1165,10 +1165,11 @@ static int errata_omap3_i462(struct omap_i2c_dev *omap)
+ 	return 0;
+ }
+ 
+-static void omap_i2c_receive_data(struct omap_i2c_dev *omap, u8 num_bytes,
++static bool omap_i2c_receive_data(struct omap_i2c_dev *omap, u8 num_bytes,
+ 		bool is_rdr)
+ {
+ 	u16		w;
++	bool		recv_len_reprogrammed = false;
+ 
+ 	while (num_bytes--) {
+ 		w = omap_i2c_read_reg(omap, OMAP_I2C_DATA_REG);
+@@ -1192,6 +1193,8 @@ static void omap_i2c_receive_data(struct omap_i2c_dev *omap, u8 num_bytes,
+ 			omap_i2c_resize_fifo(omap, remaining, true);
+ 			omap_i2c_write_reg(omap, OMAP_I2C_CNT_REG, remaining);
+ 			omap->recv_len = false;
++			recv_len_reprogrammed = true;
++			break;
+ 		}
+ 
+ 		/*
+@@ -1203,6 +1206,8 @@ static void omap_i2c_receive_data(struct omap_i2c_dev *omap, u8 num_bytes,
+ 			omap->buf_len--;
+ 		}
+ 	}
++
++	return recv_len_reprogrammed;
+ }
+ 
+ static int omap_i2c_transmit_data(struct omap_i2c_dev *omap, u8 num_bytes,
+@@ -1300,8 +1305,11 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+ 
+ 		if (stat & OMAP_I2C_STAT_RDR) {
+ 			u8 num_bytes = 1;
++			bool recv_len_reprogrammed;
+ 
+-			if (omap->fifo_size)
++			if (omap->recv_len)
++				num_bytes = 1;
++			else if (omap->fifo_size)
+ 				num_bytes = omap->buf_len;
+ 
+ 			if (omap->errata & I2C_OMAP_ERRATA_I207) {
+@@ -1310,19 +1318,32 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+ 					OMAP_I2C_BUFSTAT_REG) >> 8) & 0x3F;
+ 			}
+ 
+-			omap_i2c_receive_data(omap, num_bytes, true);
++			recv_len_reprogrammed =
++				omap_i2c_receive_data(omap, num_bytes, true);
+ 			omap_i2c_ack_stat(omap, OMAP_I2C_STAT_RDR);
++			if (recv_len_reprogrammed) {
++				err = -EAGAIN;
++				break;
++			}
+ 			continue;
+ 		}
+ 
+ 		if (stat & OMAP_I2C_STAT_RRDY) {
+ 			u8 num_bytes = 1;
++			bool recv_len_reprogrammed;
+ 
+-			if (omap->threshold)
++			if (omap->recv_len)
++				num_bytes = 1;
++			else if (omap->threshold)
+ 				num_bytes = omap->threshold;
+ 
+-			omap_i2c_receive_data(omap, num_bytes, false);
++			recv_len_reprogrammed =
++				omap_i2c_receive_data(omap, num_bytes, false);
+ 			omap_i2c_ack_stat(omap, OMAP_I2C_STAT_RRDY);
++			if (recv_len_reprogrammed) {
++				err = -EAGAIN;
++				break;
++			}
+ 			continue;
+ 		}
+ 
+-- 
+2.47.3
+
