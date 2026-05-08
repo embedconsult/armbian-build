@@ -4,11 +4,11 @@ Date: Thu, 7 May 2026 13:53:30 +0000
 Subject: [PATCH] Pause OMAP recv-len after count byte
 
 ---
- drivers/i2c/busses/i2c-omap.c | 60 ++++++++++++++++++++++++++++++++++---------
- 1 file changed, 48 insertions(+), 12 deletions(-)
+ drivers/i2c/busses/i2c-omap.c | 87 ++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 66 insertions(+), 21 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-omap.c b/drivers/i2c/busses/i2c-omap.c
-index 6cc241563fed..3b43be38c5a4 100644
+index 6cc241563fed..1200baece0a7 100644
 --- a/drivers/i2c/busses/i2c-omap.c
 +++ b/drivers/i2c/busses/i2c-omap.c
 @@ -1165,10 +1165,11 @@ static int errata_omap3_i462(struct omap_i2c_dev *omap)
@@ -52,7 +52,7 @@ index 6cc241563fed..3b43be38c5a4 100644
  }
  
  static int omap_i2c_transmit_data(struct omap_i2c_dev *omap, u8 num_bytes,
-@@ -1248,11 +1253,26 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1248,11 +1254,26 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  		stat = omap_i2c_read_reg(omap, OMAP_I2C_STAT_REG);
  		stat &= bits;
  
@@ -84,7 +84,23 @@ index 6cc241563fed..3b43be38c5a4 100644
  
  		if (!stat) {
  			/* my work here is done */
-@@ -1300,8 +1320,11 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1282,14 +1303,7 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+ 			omap_i2c_ack_stat(omap, OMAP_I2C_STAT_AL);
+ 		}
+ 
+-		/*
+-		 * ProDB0017052: Clear ARDY bit twice
+-		 */
+-		if (stat & OMAP_I2C_STAT_ARDY)
+-			omap_i2c_ack_stat(omap, OMAP_I2C_STAT_ARDY);
+-
+-		if (stat & (OMAP_I2C_STAT_ARDY | OMAP_I2C_STAT_NACK |
+-					OMAP_I2C_STAT_AL)) {
++		if (stat & (OMAP_I2C_STAT_NACK | OMAP_I2C_STAT_AL)) {
+ 			omap_i2c_ack_stat(omap, (OMAP_I2C_STAT_RRDY |
+ 						OMAP_I2C_STAT_RDR |
+ 						OMAP_I2C_STAT_XRDY |
+@@ -1300,8 +1314,11 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  
  		if (stat & OMAP_I2C_STAT_RDR) {
  			u8 num_bytes = 1;
@@ -97,7 +113,7 @@ index 6cc241563fed..3b43be38c5a4 100644
  				num_bytes = omap->buf_len;
  
  			if (omap->errata & I2C_OMAP_ERRATA_I207) {
-@@ -1310,23 +1333,36 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1310,23 +1327,51 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  					OMAP_I2C_BUFSTAT_REG) >> 8) & 0x3F;
  			}
  
@@ -134,11 +150,26 @@ index 6cc241563fed..3b43be38c5a4 100644
  		}
  
 -		if (stat & OMAP_I2C_STAT_XDR) {
++		/*
++		 * ProDB0017052: Clear ARDY bit twice. Handle it after RX
++		 * data-ready states so a combined ARDY|RRDY/RDR interrupt
++		 * cannot complete the transfer before payload bytes are copied.
++		 */
++		if (stat & OMAP_I2C_STAT_ARDY) {
++			omap_i2c_ack_stat(omap, OMAP_I2C_STAT_ARDY);
++			omap_i2c_ack_stat(omap, (OMAP_I2C_STAT_RRDY |
++						OMAP_I2C_STAT_RDR |
++						OMAP_I2C_STAT_XRDY |
++						OMAP_I2C_STAT_XDR |
++						OMAP_I2C_STAT_ARDY));
++			break;
++		}
++
 +		if (!omap->receiver && (stat & OMAP_I2C_STAT_XDR)) {
  			u8 num_bytes = 1;
  			int ret;
  
-@@ -1341,7 +1377,7 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1341,7 +1386,7 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  			continue;
  		}
  
