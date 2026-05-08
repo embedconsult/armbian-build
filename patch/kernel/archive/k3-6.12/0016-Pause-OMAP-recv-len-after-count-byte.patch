@@ -4,11 +4,11 @@ Date: Thu, 7 May 2026 13:53:30 +0000
 Subject: [PATCH] Pause OMAP recv-len after count byte
 
 ---
- drivers/i2c/busses/i2c-omap.c | 63 ++++++++++++++++++++++++++++++++++---------
- 1 file changed, 50 insertions(+), 13 deletions(-)
+ drivers/i2c/busses/i2c-omap.c | 60 ++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 48 insertions(+), 12 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-omap.c b/drivers/i2c/busses/i2c-omap.c
-index 6cc241563fed..6a5becc54270 100644
+index 6cc241563fed..3b43be38c5a4 100644
 --- a/drivers/i2c/busses/i2c-omap.c
 +++ b/drivers/i2c/busses/i2c-omap.c
 @@ -1165,10 +1165,11 @@ static int errata_omap3_i462(struct omap_i2c_dev *omap)
@@ -52,7 +52,7 @@ index 6cc241563fed..6a5becc54270 100644
  }
  
  static int omap_i2c_transmit_data(struct omap_i2c_dev *omap, u8 num_bytes,
-@@ -1248,11 +1254,26 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1248,11 +1253,26 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  		stat = omap_i2c_read_reg(omap, OMAP_I2C_STAT_REG);
  		stat &= bits;
  
@@ -84,7 +84,7 @@ index 6cc241563fed..6a5becc54270 100644
  
  		if (!stat) {
  			/* my work here is done */
-@@ -1300,8 +1321,11 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1300,8 +1320,11 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  
  		if (stat & OMAP_I2C_STAT_RDR) {
  			u8 num_bytes = 1;
@@ -97,7 +97,7 @@ index 6cc241563fed..6a5becc54270 100644
  				num_bytes = omap->buf_len;
  
  			if (omap->errata & I2C_OMAP_ERRATA_I207) {
-@@ -1310,23 +1334,36 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1310,23 +1333,36 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  					OMAP_I2C_BUFSTAT_REG) >> 8) & 0x3F;
  			}
  
@@ -138,7 +138,7 @@ index 6cc241563fed..6a5becc54270 100644
  			u8 num_bytes = 1;
  			int ret;
  
-@@ -1341,7 +1378,7 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
+@@ -1341,7 +1377,7 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
  			continue;
  		}
  
